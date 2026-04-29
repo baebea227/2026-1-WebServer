@@ -1,0 +1,26 @@
+<!--
+[과제 3] qa/templates/qa/ask_question.html
+TODO: 질문 작성 폼을 완성하세요 (Bootstrap 스타일 적용).
+-->
+{% extends 'qa/base.html' %}
+{% block content %}
+<h2>Ask a New Question</h2>
+
+<!-- TODO: POST 방식 폼을 작성하세요 -->
+<form method="post" class="mt-4">
+    {% csrf_token %}
+    <div class="mb-3">
+        <label for="title" class="form-label">Title</label>
+        <!-- TODO: title 입력 필드를 추가하세요 (name="title") -->
+        <input type="text" name="title" id="title" class="form-control"
+               placeholder="Enter your question title">
+    </div>
+    <div class="mb-3">
+        <label for="content" class="form-label">Content</label>
+        <!-- TODO: content 입력 필드를 추가하세요 (name="content") -->
+        <textarea name="content" id="content" class="form-control" rows="6"
+                  placeholder="Describe your question in detail..."></textarea>
+    </div>
+    <button type="submit" class="btn btn-primary">Post Question</button>
+</form>
+{% endblock %}

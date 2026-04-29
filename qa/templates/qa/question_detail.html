@@ -1,0 +1,43 @@
+<!--
+[과제 3] qa/templates/qa/question_detail.html
+TODO: 질문 상세 보기, 답변 목록, 답변 작성 폼을 완성하세요.
+-->
+{% extends 'qa/base.html' %}
+{% block content %}
+
+<!-- TODO: 질문 제목, 내용, 작성자를 표시하세요 -->
+<h2>{{ question.title }}</h2>
+<p>{{ question.content }}</p>
+<p><small>By {{ question.author.username }} at {{ question.created_at }}</small></p>
+
+<hr>
+<h4>Answers</h4>
+<ul class="list-group mb-4">
+    <!-- TODO: 답변 목록을 반복 표시하세요 -->
+    <!-- 힌트: question.answers.all 사용 -->
+    {% for answer in question.answers.all %}
+    <li class="list-group-item">
+        {{ answer.content }}<br>
+        <small class="text-muted">— {{ answer.author.username }} at {{ answer.created_at|date:"Y-m-d H:i" }}</small>
+    </li>
+    {% empty %}
+    <li class="list-group-item">No answers yet.</li>
+    {% endfor %}
+</ul>
+
+<!-- TODO: 로그인한 사용자에게만 답변 작성 폼을 표시하세요 -->
+{% if user.is_authenticated %}
+<h5>Write an Answer</h5>
+<form method="post">
+    {% csrf_token %}
+    <div class="mb-3">
+        <textarea name="content" class="form-control" rows="4"
+                  placeholder="Write your answer here..."></textarea>
+    </div>
+    <button type="submit" class="btn btn-success">Submit Answer</button>
+</form>
+{% else %}
+<p><a href="{% url 'login' %}">Login</a> to write an answer.</p>
+{% endif %}
+
+{% endblock %}

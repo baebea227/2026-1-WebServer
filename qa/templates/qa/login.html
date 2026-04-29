@@ -1,0 +1,24 @@
+<!--
+[과제 3] qa/templates/qa/login.html
+TODO: Django 기본 로그인 폼을 Bootstrap 스타일로 렌더링하세요.
+-->
+{% extends 'qa/base.html' %}
+{% block content %}
+<h2>Login</h2>
+
+<form method="post" class="mt-4">
+    {% csrf_token %}
+    <!-- TODO: 폼 필드를 반복 렌더링하세요 -->
+    <!-- 힌트: { % for field in form % } 사용 -->
+    {% for field in form %}
+    <div class="mb-3">
+        <label class="form-label">{{ field.label }}</label>
+        {{ field }}
+        {% if field.errors %}
+        <div class="text-danger small">{{ field.errors|striptags }}</div>
+        {% endif %}
+    </div>
+    {% endfor %}
+    <button type="submit" class="btn btn-primary">Login</button>
+</form>
+{% endblock %}

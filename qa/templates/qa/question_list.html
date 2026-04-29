@@ -1,0 +1,40 @@
+<!--
+[과제 3] qa/templates/qa/question_list.html
+TODO: Bootstrap Card 스타일로 질문 목록을 표시하세요.
+-->
+{% extends 'qa/base.html' %}
+{% block content %}
+<h2>All Questions</h2>
+
+<div class="d-flex justify-content-end mb-3">
+    <a href="{% url 'ask_question' %}" class="btn btn-primary">Ask Question</a>
+</div>
+
+<!-- TODO: 반응형 2열 카드 레이아웃을 만드세요 -->
+<div class="row row-cols-1 row-cols-md-2 g-4">
+
+    <!-- TODO: questions를 반복하여 카드를 생성하세요 -->
+    {% for question in questions %}
+    <div class="col">
+        <div class="card h-100">
+            <div class="card-body">
+                <h5 class="card-title">
+                    <!-- TODO: 질문 상세 페이지로의 링크를 만드세요 -->
+                    <a href="{% url 'question_detail' question.pk %}">{{ question.title }}</a>
+                </h5>
+                <!-- TODO: 질문 내용을 한 줄로 표시하세요 (text-truncate 클래스 사용) -->
+                <p class="card-text text-truncate">{{ question.content }}</p>
+            </div>
+            <div class="card-footer text-muted">
+                <!-- TODO: 작성자와 작성일을 표시하세요 -->
+                By {{ question.author.username }} | {{ question.created_at|date:"Y-m-d H:i" }}
+            </div>
+        </div>
+    </div>
+
+    {% empty %}
+    <p>No questions yet.</p>
+    {% endfor %}
+
+</div>
+{% endblock %}
