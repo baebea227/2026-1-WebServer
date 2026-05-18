@@ -21,6 +21,18 @@
 <script src="{% static 'jquery-3.4.1.min.js' %}"></script>
 <!-- Bootstrap JS -->
 <script src="{% static 'bootstrap.min.js' %}"></script>
+<script type="text/javascript">
+(function() {
+    if ('scrollRestoration' in history) {
+        history.scrollRestoration = 'manual';
+    }
+    window.addEventListener('load', function() {
+        if (!window.location.hash) {
+            window.scrollTo(0, 0);
+        }
+    });
+})();
+</script>
 <!-- 자바스크립트 Start -->
 {% block script %}
 {% endblock %}

@@ -30,3 +30,18 @@ class Comment(models.Model):
     modify_date = models.DateTimeField(null=True, blank=True)
     question = models.ForeignKey(Question, null=True, blank=True, on_delete=models.CASCADE)
     answer = models.ForeignKey(Answer, null=True, blank=True, on_delete=models.CASCADE)
+
+
+class Bookmark(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='question_bookmarks')
+    question = models.ForeignKey(Question, on_delete=models.CASCADE, related_name='bookmarks')
+    create_date = models.DateTimeField()
+
+    class Meta:
+        ordering = ['-create_date']
+        constraints = [
+            models.UniqueConstraint(fields=['user', 'question'], name='unique_question_bookmark')
+        ]
+
+    def __str__(self):
+        return f'{self.user.username} - {self.question.subject}'

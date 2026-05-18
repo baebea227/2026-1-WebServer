@@ -27,5 +27,9 @@ def detail(request, question_id):
     pybo 내용 출력
     """
     question = get_object_or_404(Question, pk=question_id)
-    context = {'question': question}
+    is_bookmarked = (
+        request.user.is_authenticated
+        and question.bookmarks.filter(user=request.user).exists()
+    )
+    context = {'question': question, 'is_bookmarked': is_bookmarked}
     return render(request, 'pybo/question_detail.html', context)

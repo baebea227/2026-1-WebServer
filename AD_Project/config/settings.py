@@ -10,10 +10,25 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/3.0/ref/settings/
 """
 
+import os
 from pathlib import Path
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
+
+
+def load_local_env(path):
+    if not path.exists():
+        return
+    for line in path.read_text(encoding='utf-8').splitlines():
+        line = line.strip()
+        if not line or line.startswith('#') or '=' not in line:
+            continue
+        key, value = line.split('=', 1)
+        os.environ.setdefault(key.strip(), value.strip().strip('"').strip("'"))
+
+
+load_local_env(BASE_DIR / '.env')
 
 
 # Quick-start development settings - unsuitable for production
@@ -33,6 +48,7 @@ ALLOWED_HOSTS = []
 INSTALLED_APPS = [
     'common.apps.CommonConfig',
     'pybo.apps.PyboConfig',
+    'rest_framework',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -75,12 +91,35 @@ WSGI_APPLICATION = 'config.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/3.0/ref/settings/#databases
 
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+def use_postgresql_database():
+    db_engine = os.environ.get('DB_ENGINE', '').lower()
+    return (
+        db_engine in ('postgres', 'postgresql', 'django.db.backends.postgresql')
+        or all(os.environ.get(key) for key in ('DB_NAME', 'DB_USER', 'DB_PASSWORD', 'DB_HOST'))
+    )
+
+
+def build_database_config():
+    if use_postgresql_database():
+        return {
+            'default': {
+                'ENGINE': 'django.db.backends.postgresql',
+                'NAME': os.environ.get('DB_NAME', 'pybo'),
+                'USER': os.environ.get('DB_USER', 'postgres'),
+                'PASSWORD': os.environ.get('DB_PASSWORD', ''),
+                'HOST': os.environ.get('DB_HOST', 'localhost'),
+                'PORT': os.environ.get('DB_PORT', '5432'),
+            }
+        }
+    return {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': BASE_DIR / 'db.sqlite3',
+        }
     }
-}
+
+
+DATABASES = build_database_config()
 
 
 # Password validation
@@ -123,6 +162,18 @@ STATIC_URL = '/static/'
 STATICFILES_DIRS = [
     BASE_DIR / 'static',
 ]
+
+DEFAULT_AUTO_FIELD = 'django.db.models.AutoField'
+
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        'rest_framework.authentication.SessionAuthentication',
+        'rest_framework.authentication.BasicAuthentication',
+    ],
+    'DEFAULT_PERMISSION_CLASSES': [
+        'rest_framework.permissions.AllowAny',
+    ],
+}
 
 # 로그인/로그아웃 성공후 이동하는 URL
 LOGIN_REDIRECT_URL = '/'

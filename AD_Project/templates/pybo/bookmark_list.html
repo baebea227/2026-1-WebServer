@@ -1,0 +1,35 @@
+{% extends 'base.html' %}
+{% load pybo_filter %}
+{% block content %}
+<div class="container my-3">
+    <h5 class="border-bottom pb-2">내 북마크</h5>
+    <table class="table">
+        <thead>
+        <tr class="text-center thead-dark">
+            <th>번호</th>
+            <th style="width:50%">제목</th>
+            <th>글쓴이</th>
+            <th>북마크일시</th>
+        </tr>
+        </thead>
+        <tbody>
+        {% if bookmarks %}
+        {% for bookmark in bookmarks %}
+        <tr class="text-center">
+            <td>{{ forloop.counter }}</td>
+            <td class="text-left">
+                <a href="{% url 'pybo:detail' bookmark.question.id %}">{{ bookmark.question.subject }}</a>
+            </td>
+            <td>{{ bookmark.question.author.username }}</td>
+            <td>{{ bookmark.create_date }}</td>
+        </tr>
+        {% endfor %}
+        {% else %}
+        <tr>
+            <td colspan="4">저장한 북마크가 없습니다.</td>
+        </tr>
+        {% endif %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}
