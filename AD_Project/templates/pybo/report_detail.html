@@ -1,0 +1,70 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="container my-3">
+    {% if messages %}
+    <div class="alert alert-success my-3" role="alert">
+    {% for message in messages %}
+        <div>{{ message.message }}</div>
+    {% endfor %}
+    </div>
+    {% endif %}
+    <h5 class="border-bottom pb-2">신고 검토</h5>
+    <table class="table">
+        <tbody>
+        <tr>
+            <th class="w-25">신고 대상</th>
+            <td>
+                {{ report.get_target_type_display }}
+                <a href="{% url 'pybo:detail' report.target_question_id %}" class="btn btn-sm btn-outline-secondary ml-2">원문 보기</a>
+            </td>
+        </tr>
+        <tr>
+            <th>신고 사유</th>
+            <td>{{ report.get_reason_display }}</td>
+        </tr>
+        <tr>
+            <th>상세 내용</th>
+            <td style="white-space: pre-line;">{{ report.content|default:"-" }}</td>
+        </tr>
+        <tr>
+            <th>신고자</th>
+            <td>{{ report.reporter.username }}</td>
+        </tr>
+        <tr>
+            <th>신고일시</th>
+            <td>{{ report.create_date }}</td>
+        </tr>
+        <tr>
+            <th>현재 상태</th>
+            <td>{{ report.get_status_display }}</td>
+        </tr>
+        {% if report.reviewed_by %}
+        <tr>
+            <th>최근 검토자</th>
+            <td>{{ report.reviewed_by.username }} / {{ report.reviewed_at }}</td>
+        </tr>
+        {% endif %}
+        </tbody>
+    </table>
+    <div class="card my-3">
+        <div class="card-header">원문 내용</div>
+        <div class="card-body">
+            <div class="card-text" style="white-space: pre-line;">{{ report.target.content }}</div>
+        </div>
+    </div>
+    <form method="post">
+        {% csrf_token %}
+        {% include "form_errors.html" %}
+        <div class="form-group">
+            <label for="status">{{ form.status.label }}</label>
+            {{ form.status }}
+        </div>
+        <div class="form-group">
+            <label for="review_memo">{{ form.review_memo.label }}</label>
+            {{ form.review_memo }}
+        </div>
+        <button type="submit" class="btn btn-primary">저장</button>
+        <a href="{% url 'pybo:report_list' %}" class="btn btn-secondary">목록</a>
+    </form>
+</div>
+{% endblock %}

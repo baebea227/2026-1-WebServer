@@ -4,7 +4,7 @@ from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
 
-from .models import Category, Question
+from .models import Category, ContentReport, Question
 
 
 class BookmarkViewsTests(TestCase):
@@ -141,3 +141,96 @@ class CategoryViewsTests(TestCase):
     def test_category_with_question_is_protected(self):
         with self.assertRaises(ProtectedError):
             self.qna.delete()
+
+
+class ReportViewsTests(TestCase):
+    def setUp(self):
+        self.reporter = User.objects.create_user(username='reporter', password='password')
+        self.author = User.objects.create_user(username='author', password='password')
+        self.staff = User.objects.create_user(
+            username='staff',
+            password='password',
+            is_staff=True,
+        )
+        self.category = Category.objects.get(slug='qna')
+        self.question = Question.objects.create(
+            category=self.category,
+            author=self.author,
+            subject='report subject',
+            content='report content',
+            create_date=timezone.now(),
+        )
+
+    def test_report_create_requires_login(self):
+        url = reverse('pybo:report_create', args=['question', self.question.id])
+
+        response = self.client.get(url)
+
+        self.assertEqual(response.status_code, 302)
+        self.assertIn(reverse('common:login'), response.url)
+
+    def test_report_create_saves_question_report(self):
+        self.client.login(username='reporter', password='password')
+
+        response = self.client.post(
+            reverse('pybo:report_create', args=['question', self.question.id]),
+            {
+                'reason': 'inappropriate',
+                'content': '부적절합니다.',
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        report = ContentReport.objects.get()
+        self.assertEqual(report.reporter, self.reporter)
+        self.assertEqual(report.question, self.question)
+        self.assertEqual(report.status, 'pending')
+
+    def test_report_create_blocks_duplicate_report(self):
+        ContentReport.objects.create(
+            reporter=self.reporter,
+            question=self.question,
+            reason='spam',
+            create_date=timezone.now(),
+        )
+        self.client.login(username='reporter', password='password')
+
+        self.client.post(
+            reverse('pybo:report_create', args=['question', self.question.id]),
+            {
+                'reason': 'inappropriate',
+                'content': '중복 신고',
+            },
+        )
+
+        self.assertEqual(ContentReport.objects.count(), 1)
+
+    def test_report_list_requires_staff(self):
+        self.client.login(username='reporter', password='password')
+
+        response = self.client.get(reverse('pybo:report_list'))
+
+        self.assertEqual(response.status_code, 302)
+        self.assertIn(reverse('common:login'), response.url)
+
+    def test_report_review_updates_status_by_staff(self):
+        report = ContentReport.objects.create(
+            reporter=self.reporter,
+            question=self.question,
+            reason='spam',
+            create_date=timezone.now(),
+        )
+        self.client.login(username='staff', password='password')
+
+        response = self.client.post(
+            reverse('pybo:report_detail', args=[report.id]),
+            {
+                'status': 'resolved',
+                'review_memo': '처리했습니다.',
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        report.refresh_from_db()
+        self.assertEqual(report.status, 'resolved')
+        self.assertEqual(report.reviewed_by, self.staff)

@@ -8,6 +8,11 @@
     <div class="collapse navbar-collapse flex-grow-0" id="navbarNav">
         <ul class="navbar-nav">
             {% if user.is_authenticated %}
+            {% if user.is_staff %}
+            <li class="nav-item ">
+                <a class="nav-link" href="{% url 'pybo:report_list' %}">신고관리</a>
+            </li>
+            {% endif %}
             <li class="nav-item ">
                 <a class="nav-link" href="{% url 'pybo:bookmark_list' %}">북마크</a>
             </li>
