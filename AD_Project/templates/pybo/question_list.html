@@ -2,6 +2,16 @@
 {% load pybo_filter %}
 {% block content %}
 <div class="container my-3">
+    <div class="btn-group mb-3" role="group" aria-label="카테고리">
+        <a href="javascript:void(0)"
+           class="category-link btn btn-sm {% if not category %}btn-primary{% else %}btn-outline-primary{% endif %}"
+           data-category="">전체</a>
+        {% for item in category_list %}
+        <a href="javascript:void(0)"
+           class="category-link btn btn-sm {% if category == item.slug %}btn-primary{% else %}btn-outline-primary{% endif %}"
+           data-category="{{ item.slug }}">{{ item.name }}</a>
+        {% endfor %}
+    </div>
     <div class="row my-3">
         <div class="col-6">
             <a href="{% url 'pybo:question_create' %}" class="btn btn-primary">질문 등록하기</a>
@@ -20,6 +30,7 @@
         <tr class="text-center thead-dark">
             <th>번호</th>
             <th>추천</th>
+            <th>카테고리</th>
             <th style="width:50%">제목</th>
             <th>글쓴이</th>
             <th>작성일시</th>
@@ -38,6 +49,9 @@
                 <span class="badge badge-warning px-2 py-1">{{ question.voter.all.count }}</span>
                 {% endif %}
             </td>
+            <td>
+                <span class="badge badge-secondary">{{ question.category.name }}</span>
+            </td>
             <td class="text-left">
                 <a href="{% url 'pybo:detail' question.id %}">{{ question.subject }}</a>
                 {% if question.answer_set.count > 0 %}
@@ -50,7 +64,7 @@
         {% endfor %}
         {% else %}
         <tr>
-            <td colspan="3">질문이 없습니다.</td>
+            <td colspan="6">질문이 없습니다.</td>
         </tr>
         {% endif %}
         </tbody>
@@ -100,13 +114,22 @@
     </ul>
     <!-- 페이징처리 끝 -->
 </div>
-<form id="searchForm" method="get" action="{% url 'index' %}">
+<form id="searchForm" method="get" action="{% url 'pybo:index' %}">
     <input type="hidden" id="kw" name="kw" value="{{ kw|default_if_none:'' }}">
     <input type="hidden" id="page" name="page" value="{{ page }}">
+    <input type="hidden" id="category" name="category" value="{{ category }}">
 </form>
 {% endblock %}
 {% block script %}
 <script type='text/javascript'>
+const category_elements = document.getElementsByClassName("category-link");
+Array.from(category_elements).forEach(function(element) {
+    element.addEventListener('click', function() {
+        document.getElementById('category').value = this.dataset.category;
+        document.getElementById('page').value = 1;
+        document.getElementById('searchForm').submit();
+    });
+});
 const page_elements = document.getElementsByClassName("page-link");
 Array.from(page_elements).forEach(function(element) {
     element.addEventListener('click', function() {

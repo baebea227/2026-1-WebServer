@@ -2,7 +2,7 @@ from django.core.paginator import Paginator
 from django.db.models import Q
 from django.shortcuts import render, get_object_or_404
 
-from ..models import Question
+from ..models import Category, Question
 
 
 def index(request):
@@ -12,9 +12,13 @@ def index(request):
     # 입력 파라미터
     page = request.GET.get('page', '1')  # 페이지
     kw = request.GET.get('kw', '')  # 검색어
+    category_slug = request.GET.get('category', '')  # 카테고리
 
     # 조회
-    question_list = Question.objects.order_by('-create_date')
+    category_list = Category.objects.order_by('id')
+    question_list = Question.objects.select_related('category', 'author').order_by('-create_date')
+    if category_slug:
+        question_list = question_list.filter(category__slug=category_slug)
     if kw:
         question_list = question_list.filter(
             Q(subject__icontains=kw) |  # 제목 검색
@@ -28,7 +32,13 @@ def index(request):
     paginator = Paginator(question_list, 10)  # 페이지당 10개씩 보여주기
     page_obj = paginator.get_page(page)
 
-    context = {'question_list': page_obj, 'page': page, 'kw': kw}
+    context = {
+        'question_list': page_obj,
+        'page': page,
+        'kw': kw,
+        'category': category_slug,
+        'category_list': category_list,
+    }
     return render(request, 'pybo/question_list.html', context)
 
 

@@ -10,7 +10,10 @@
     {% endfor %}
     </div>
     {% endif %}
-    <h2 class="border-bottom py-2">{{ question.subject }}</h2>
+    <h2 class="border-bottom py-2">
+        <span class="badge badge-secondary">{{ question.category.name }}</span>
+        {{ question.subject }}
+    </h2>
     <div class="row my-3">
         <div class="col-1"> <!-- 추천영역 -->
             <div class="bg-light text-center p-3 border font-weight-bolder mb-1">{{question.voter.count}}</div>
