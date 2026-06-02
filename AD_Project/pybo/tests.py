@@ -6,6 +6,7 @@ from django.db.models import ProtectedError
 from django.test import TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
+from rest_framework.test import APIClient
 
 from .models import Answer, Category, Comment, ContentReport, Notification, Question
 
@@ -764,3 +765,204 @@ class NotificationViewsTests(FastPasswordTestCase):
         self.assertEqual(response.status_code, 405)
         notification.refresh_from_db()
         self.assertIsNone(notification.read_date)
+
+
+class PyboApiTests(FastPasswordTestCase):
+    def setUp(self):
+        self.api = APIClient()
+        self.user = User.objects.create_user(username='user', password='password')
+        self.other_user = User.objects.create_user(username='other', password='password')
+        self.staff = User.objects.create_user(username='staff', password='password', is_staff=True)
+        self.error_category = Category.objects.get(slug='error')
+        self.concept_category = Category.objects.get(slug='concept')
+        self.etc_category = Category.objects.get(slug='etc')
+        self.error_question = Question.objects.create(
+            category=self.error_category,
+            author=self.other_user,
+            subject='Django error subject',
+            content='common keyword',
+            create_date=timezone.now(),
+            view_count=1,
+        )
+        self.concept_question = Question.objects.create(
+            category=self.concept_category,
+            author=self.user,
+            subject='concept subject',
+            content='other content',
+            create_date=timezone.now() - timedelta(days=1),
+        )
+        self.answer = Answer.objects.create(
+            author=self.user,
+            question=self.error_question,
+            content='answer keyword',
+            create_date=timezone.now(),
+        )
+        self.comment = Comment.objects.create(
+            author=self.user,
+            question=self.error_question,
+            content='comment content',
+            create_date=timezone.now(),
+        )
+
+    def test_question_api_filters_by_keyword_and_category(self):
+        response = self.api.get(reverse('pybo_api:question-list'), {
+            'kw': 'answer keyword',
+            'category': 'error',
+        })
+
+        self.assertEqual(response.status_code, 200)
+        subjects = [question['subject'] for question in response.data['results']]
+        self.assertIn(self.error_question.subject, subjects)
+        self.assertNotIn(self.concept_question.subject, subjects)
+
+    def test_category_api_lists_question_types(self):
+        response = self.api.get(reverse('pybo_api:category-list'))
+
+        self.assertEqual(response.status_code, 200)
+        slugs = {category['slug'] for category in response.data['results']}
+        self.assertEqual(
+            slugs,
+            {'error', 'concept', 'implementation', 'environment', 'etc'},
+        )
+
+    def test_popular_question_api_orders_by_weighted_score(self):
+        popular_question = Question.objects.create(
+            category=self.etc_category,
+            author=self.user,
+            subject='popular api subject',
+            content='popular api content',
+            create_date=timezone.now(),
+            view_count=2,
+        )
+        popular_question.voter.add(self.other_user)
+        Answer.objects.create(
+            author=self.other_user,
+            question=popular_question,
+            content='popular answer',
+            create_date=timezone.now(),
+        )
+
+        response = self.api.get(reverse('pybo_api:popular-question-list'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data['results'][0]['subject'], popular_question.subject)
+        self.assertEqual(response.data['results'][0]['popular_score'], 10)
+
+    def test_bookmark_api_toggles_and_lists_current_user_bookmarks(self):
+        self.api.login(username='user', password='password')
+
+        toggle_response = self.api.post(reverse('pybo_api:bookmark-toggle', args=[self.error_question.id]))
+        list_response = self.api.get(reverse('pybo_api:bookmark-list'))
+        second_toggle_response = self.api.post(reverse('pybo_api:bookmark-toggle', args=[self.error_question.id]))
+
+        self.assertEqual(toggle_response.status_code, 200)
+        self.assertTrue(toggle_response.data['bookmarked'])
+        self.assertEqual(list_response.data['results'][0]['id'], self.error_question.id)
+        self.assertFalse(second_toggle_response.data['bookmarked'])
+
+    def test_mypage_activity_api_returns_only_current_user_activity(self):
+        self.error_question.voter.add(self.user)
+        self.error_question.bookmark.add(self.user)
+        Comment.objects.create(
+            author=self.other_user,
+            question=self.concept_question,
+            content='other comment',
+            create_date=timezone.now(),
+        )
+        self.api.login(username='user', password='password')
+
+        response = self.api.get(reverse('pybo_api:my-activity'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data['my_questions'][0]['id'], self.concept_question.id)
+        self.assertEqual(response.data['my_answers'][0]['id'], self.answer.id)
+        self.assertEqual(response.data['my_comments'][0]['id'], self.comment.id)
+        self.assertEqual(response.data['voted_questions'][0]['id'], self.error_question.id)
+        self.assertEqual(response.data['bookmarked_questions'][0]['id'], self.error_question.id)
+        self.assertNotIn('other comment', [comment['content'] for comment in response.data['my_comments']])
+
+    def test_report_api_creates_report_and_blocks_invalid_reports(self):
+        self.api.login(username='user', password='password')
+        url = reverse('pybo_api:report-list-create')
+
+        response = self.api.post(url, {
+            'target_type': 'question',
+            'target_id': self.error_question.id,
+            'reason': 'spam',
+            'content': 'spam report',
+        }, format='json')
+        duplicate_response = self.api.post(url, {
+            'target_type': 'question',
+            'target_id': self.error_question.id,
+            'reason': 'abuse',
+            'content': 'duplicate report',
+        }, format='json')
+        own_response = self.api.post(url, {
+            'target_type': 'question',
+            'target_id': self.concept_question.id,
+            'reason': 'abuse',
+            'content': 'own report',
+        }, format='json')
+
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(response.data['target_type'], 'question')
+        self.assertEqual(response.data['status'], 'pending')
+        self.assertEqual(duplicate_response.status_code, 400)
+        self.assertEqual(own_response.status_code, 400)
+        self.assertEqual(ContentReport.objects.count(), 1)
+
+    def test_report_admin_api_lists_and_reviews_reports(self):
+        report = ContentReport.objects.create(
+            reporter=self.user,
+            question=self.error_question,
+            reason='spam',
+            create_date=timezone.now(),
+        )
+        self.api.login(username='user', password='password')
+
+        denied_response = self.api.get(reverse('pybo_api:report-list-create'))
+
+        self.api.logout()
+        self.api.login(username='staff', password='password')
+        list_response = self.api.get(reverse('pybo_api:report-list-create'))
+        review_response = self.api.patch(reverse('pybo_api:report-detail', args=[report.id]), {
+            'status': 'resolved',
+            'review_memo': '처리했습니다.',
+        }, format='json')
+
+        report.refresh_from_db()
+        self.assertEqual(denied_response.status_code, 403)
+        self.assertEqual(list_response.status_code, 200)
+        self.assertEqual(list_response.data['results'][0]['id'], report.id)
+        self.assertEqual(review_response.status_code, 200)
+        self.assertEqual(report.status, 'resolved')
+        self.assertEqual(report.reviewed_by, self.staff)
+
+    def test_notification_api_lists_current_user_notifications_and_marks_read(self):
+        notification = Notification.objects.create(
+            recipient=self.user,
+            actor=self.other_user,
+            notification_type='answer',
+            question=self.error_question,
+            message='user notification',
+            create_date=timezone.now(),
+        )
+        Notification.objects.create(
+            recipient=self.other_user,
+            actor=self.user,
+            notification_type='answer',
+            question=self.error_question,
+            message='other notification',
+            create_date=timezone.now(),
+        )
+        self.api.login(username='user', password='password')
+
+        list_response = self.api.get(reverse('pybo_api:notification-list'))
+        read_response = self.api.patch(reverse('pybo_api:notification-read', args=[notification.id]))
+
+        notification.refresh_from_db()
+        self.assertEqual(list_response.status_code, 200)
+        self.assertEqual(list_response.data['results'][0]['message'], 'user notification')
+        self.assertEqual(read_response.status_code, 200)
+        self.assertTrue(read_response.data['is_read'])
+        self.assertIsNotNone(notification.read_date)

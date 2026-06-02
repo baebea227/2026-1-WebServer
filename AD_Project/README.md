@@ -24,6 +24,7 @@
 
 - Python
 - Django
+- Django REST framework
 - SQLite
 - Bootstrap
 - jQuery
@@ -46,7 +47,7 @@ AD_Project/
 ```powershell
 python -m venv venv
 .\venv\Scripts\Activate.ps1
-pip install django
+pip install -r requirements.txt
 python manage.py migrate
 python manage.py createsuperuser
 python manage.py runserver
@@ -100,3 +101,20 @@ python manage.py test
 | `/pybo/reports/` | 신고 관리 |
 | `/common/login/` | 로그인 |
 | `/common/signup/` | 회원가입 |
+
+## DRF API URL
+
+기존 Django 세션 로그인 기반으로 `/api/` 아래에서 7개 기능을 JSON API로 제공합니다.
+
+| URL | 설명 |
+| --- | --- |
+| `/api/questions/` | 검색과 질문 유형 필터를 지원하는 질문 목록 API |
+| `/api/questions/popular/` | 인기 질문 Top 10 API |
+| `/api/categories/` | 질문 유형 목록 API |
+| `/api/questions/<id>/bookmark/` | 질문 북마크 등록/해제 API |
+| `/api/bookmarks/` | 내 북마크 목록 API |
+| `/api/me/activities/` | 마이페이지 활동 API |
+| `/api/reports/` | 신고 생성 및 관리자 신고 목록 API |
+| `/api/reports/<id>/` | 관리자 신고 처리 API |
+| `/api/notifications/` | 내 알림 목록 API |
+| `/api/notifications/<id>/read/` | 알림 읽음 처리 API |
