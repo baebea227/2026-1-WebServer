@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import Answer, Category, Comment, ContentReport, Question
+from .models import Answer, Category, Comment, ContentReport, Notification, Question
 
 
 @admin.register(Category)
@@ -34,3 +34,10 @@ class ContentReportAdmin(admin.ModelAdmin):
     list_filter = ('status', 'reason', 'create_date')
     search_fields = ('content', 'review_memo', 'reporter__username')
     readonly_fields = ('reporter', 'question', 'answer', 'comment', 'reason', 'content', 'create_date')
+
+
+@admin.register(Notification)
+class NotificationAdmin(admin.ModelAdmin):
+    list_display = ('id', 'notification_type', 'recipient', 'actor', 'create_date', 'read_date')
+    list_filter = ('notification_type', 'create_date', 'read_date')
+    search_fields = ('message', 'recipient__username', 'actor__username')

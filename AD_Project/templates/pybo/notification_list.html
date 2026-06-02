@@ -1,0 +1,73 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="container my-3">
+    <h5 class="border-bottom my-3 py-2">내 알림</h5>
+    <table class="table">
+        <thead>
+        <tr class="text-center thead-dark">
+            <th>상태</th>
+            <th style="width:55%">내용</th>
+            <th>보낸 사람</th>
+            <th>일시</th>
+        </tr>
+        </thead>
+        <tbody>
+        {% if notification_list %}
+        {% for notification in notification_list %}
+        <tr class="text-center {% if not notification.read_date %}font-weight-bold{% endif %}">
+            <td>
+                {% if notification.read_date %}
+                읽음
+                {% else %}
+                <span class="badge badge-danger">새 알림</span>
+                {% endif %}
+            </td>
+            <td class="text-left">
+                <a href="{% url 'pybo:notification_read' notification.id %}">{{ notification.message }}</a>
+            </td>
+            <td>{{ notification.actor.username }}</td>
+            <td>{{ notification.create_date }}</td>
+        </tr>
+        {% endfor %}
+        {% else %}
+        <tr>
+            <td colspan="4">알림이 없습니다.</td>
+        </tr>
+        {% endif %}
+        </tbody>
+    </table>
+    <ul class="pagination justify-content-center">
+        {% if notification_list.has_previous %}
+        <li class="page-item">
+            <a class="page-link" href="?page={{ notification_list.previous_page_number }}">이전</a>
+        </li>
+        {% else %}
+        <li class="page-item disabled">
+            <a class="page-link" tabindex="-1" aria-disabled="true" href="#">이전</a>
+        </li>
+        {% endif %}
+        {% for page_number in notification_list.paginator.page_range %}
+        {% if page_number >= notification_list.number|add:-5 and page_number <= notification_list.number|add:5 %}
+            {% if page_number == notification_list.number %}
+            <li class="page-item active" aria-current="page">
+                <a class="page-link" href="?page={{ page_number }}">{{ page_number }}</a>
+            </li>
+            {% else %}
+            <li class="page-item">
+                <a class="page-link" href="?page={{ page_number }}">{{ page_number }}</a>
+            </li>
+            {% endif %}
+        {% endif %}
+        {% endfor %}
+        {% if notification_list.has_next %}
+        <li class="page-item">
+            <a class="page-link" href="?page={{ notification_list.next_page_number }}">다음</a>
+        </li>
+        {% else %}
+        <li class="page-item disabled">
+            <a class="page-link" tabindex="-1" aria-disabled="true" href="#">다음</a>
+        </li>
+        {% endif %}
+    </ul>
+</div>
+{% endblock %}

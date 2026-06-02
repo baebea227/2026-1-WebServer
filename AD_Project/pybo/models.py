@@ -110,3 +110,40 @@ class ContentReport(models.Model):
         if self.answer_id:
             return '답변'
         return '댓글'
+
+
+class Notification(models.Model):
+    TYPE_CHOICES = [
+        ('answer', '답변'),
+        ('comment', '댓글'),
+        ('question_vote', '질문 추천'),
+        ('answer_vote', '답변 추천'),
+    ]
+
+    recipient = models.ForeignKey(User, on_delete=models.CASCADE, related_name='notifications')
+    actor = models.ForeignKey(User, on_delete=models.CASCADE, related_name='sent_notifications')
+    notification_type = models.CharField(max_length=20, choices=TYPE_CHOICES)
+    question = models.ForeignKey(Question, null=True, blank=True, on_delete=models.CASCADE)
+    answer = models.ForeignKey(Answer, null=True, blank=True, on_delete=models.CASCADE)
+    comment = models.ForeignKey(Comment, null=True, blank=True, on_delete=models.CASCADE)
+    message = models.CharField(max_length=255)
+    create_date = models.DateTimeField()
+    read_date = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ['-create_date']
+
+    def __str__(self):
+        return self.message
+
+    @property
+    def target_question_id(self):
+        if self.question_id:
+            return self.question_id
+        if self.answer_id:
+            return self.answer.question_id
+        if self.comment_id and self.comment.question_id:
+            return self.comment.question_id
+        if self.comment_id and self.comment.answer_id:
+            return self.comment.answer.question_id
+        return None

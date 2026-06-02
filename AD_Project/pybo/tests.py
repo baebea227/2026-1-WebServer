@@ -4,7 +4,7 @@ from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
 
-from .models import Answer, Category, Comment, ContentReport, Question
+from .models import Answer, Category, Comment, ContentReport, Notification, Question
 
 
 class BookmarkViewsTests(TestCase):
@@ -320,3 +320,164 @@ class ReportViewsTests(TestCase):
         report.refresh_from_db()
         self.assertEqual(report.status, 'resolved')
         self.assertEqual(report.reviewed_by, self.staff)
+
+
+class NotificationViewsTests(TestCase):
+    def setUp(self):
+        self.author = User.objects.create_user(username='author', password='password')
+        self.actor = User.objects.create_user(username='actor', password='password')
+        self.other_user = User.objects.create_user(username='other', password='password')
+        self.category = Category.objects.get(slug='qna')
+        self.question = Question.objects.create(
+            category=self.category,
+            author=self.author,
+            subject='notification subject',
+            content='notification content',
+            create_date=timezone.now(),
+        )
+
+    def test_answer_create_sends_notification_to_question_author(self):
+        self.client.login(username='actor', password='password')
+
+        response = self.client.post(reverse('pybo:answer_create', args=[self.question.id]), {
+            'content': 'new answer',
+        })
+
+        self.assertEqual(response.status_code, 302)
+        notification = Notification.objects.get()
+        self.assertEqual(notification.recipient, self.author)
+        self.assertEqual(notification.actor, self.actor)
+        self.assertEqual(notification.notification_type, 'answer')
+        self.assertEqual(notification.question, self.question)
+        self.assertEqual(notification.answer.content, 'new answer')
+
+    def test_question_comment_create_sends_notification_to_question_author(self):
+        self.client.login(username='actor', password='password')
+
+        response = self.client.post(reverse('pybo:comment_create_question', args=[self.question.id]), {
+            'content': 'question comment',
+        })
+
+        self.assertEqual(response.status_code, 302)
+        notification = Notification.objects.get()
+        self.assertEqual(notification.recipient, self.author)
+        self.assertEqual(notification.notification_type, 'comment')
+        self.assertEqual(notification.question, self.question)
+        self.assertEqual(notification.comment.content, 'question comment')
+
+    def test_answer_comment_create_sends_notification_to_answer_author(self):
+        answer = Answer.objects.create(
+            question=self.question,
+            author=self.author,
+            content='answer content',
+            create_date=timezone.now(),
+        )
+        self.client.login(username='actor', password='password')
+
+        response = self.client.post(reverse('pybo:comment_create_answer', args=[answer.id]), {
+            'content': 'answer comment',
+        })
+
+        self.assertEqual(response.status_code, 302)
+        notification = Notification.objects.get()
+        self.assertEqual(notification.recipient, self.author)
+        self.assertEqual(notification.notification_type, 'comment')
+        self.assertEqual(notification.answer, answer)
+        self.assertEqual(notification.comment.content, 'answer comment')
+
+    def test_question_vote_sends_notification_to_question_author(self):
+        self.client.login(username='actor', password='password')
+
+        response = self.client.get(reverse('pybo:vote_question', args=[self.question.id]))
+
+        self.assertEqual(response.status_code, 302)
+        notification = Notification.objects.get()
+        self.assertEqual(notification.recipient, self.author)
+        self.assertEqual(notification.notification_type, 'question_vote')
+        self.assertEqual(notification.question, self.question)
+
+    def test_answer_vote_sends_notification_to_answer_author(self):
+        answer = Answer.objects.create(
+            question=self.question,
+            author=self.author,
+            content='answer content',
+            create_date=timezone.now(),
+        )
+        self.client.login(username='actor', password='password')
+
+        response = self.client.get(reverse('pybo:vote_answer', args=[answer.id]))
+
+        self.assertEqual(response.status_code, 302)
+        notification = Notification.objects.get()
+        self.assertEqual(notification.recipient, self.author)
+        self.assertEqual(notification.notification_type, 'answer_vote')
+        self.assertEqual(notification.answer, answer)
+
+    def test_own_action_does_not_create_notification(self):
+        self.client.login(username='author', password='password')
+
+        self.client.post(reverse('pybo:answer_create', args=[self.question.id]), {
+            'content': 'own answer',
+        })
+        self.client.post(reverse('pybo:comment_create_question', args=[self.question.id]), {
+            'content': 'own comment',
+        })
+        self.client.get(reverse('pybo:vote_question', args=[self.question.id]))
+
+        self.assertEqual(Notification.objects.count(), 0)
+
+    def test_repeated_vote_does_not_create_additional_notification(self):
+        self.client.login(username='actor', password='password')
+        url = reverse('pybo:vote_question', args=[self.question.id])
+
+        self.client.get(url)
+        self.client.get(url)
+
+        self.assertEqual(Notification.objects.count(), 1)
+
+    def test_notification_list_requires_login(self):
+        response = self.client.get(reverse('pybo:notification_list'))
+
+        self.assertEqual(response.status_code, 302)
+        self.assertIn(reverse('common:login'), response.url)
+
+    def test_notification_list_shows_only_current_user_notifications(self):
+        Notification.objects.create(
+            recipient=self.author,
+            actor=self.actor,
+            notification_type='answer',
+            question=self.question,
+            message='author notification',
+            create_date=timezone.now(),
+        )
+        Notification.objects.create(
+            recipient=self.other_user,
+            actor=self.actor,
+            notification_type='answer',
+            question=self.question,
+            message='other notification',
+            create_date=timezone.now(),
+        )
+        self.client.login(username='author', password='password')
+
+        response = self.client.get(reverse('pybo:notification_list'))
+
+        self.assertContains(response, 'author notification')
+        self.assertNotContains(response, 'other notification')
+
+    def test_notification_read_marks_notification_and_redirects_to_question(self):
+        notification = Notification.objects.create(
+            recipient=self.author,
+            actor=self.actor,
+            notification_type='comment',
+            question=self.question,
+            message='read notification',
+            create_date=timezone.now(),
+        )
+        self.client.login(username='author', password='password')
+
+        response = self.client.get(reverse('pybo:notification_read', args=[notification.id]))
+
+        self.assertRedirects(response, reverse('pybo:detail', args=[self.question.id]))
+        notification.refresh_from_db()
+        self.assertIsNotNone(notification.read_date)

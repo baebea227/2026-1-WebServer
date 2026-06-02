@@ -1,6 +1,6 @@
 from django.urls import path
 
-from .views import base_views, question_views, answer_views, comment_views, vote_views, bookmark_views, report_views, mypage_views
+from .views import base_views, question_views, answer_views, comment_views, vote_views, bookmark_views, report_views, mypage_views, notification_views
 
 app_name = 'pybo'
 
@@ -42,4 +42,8 @@ urlpatterns = [
     path('report/<str:target_type>/<int:target_id>/', report_views.report_create, name='report_create'),
     path('reports/', report_views.report_list, name='report_list'),
     path('reports/<int:report_id>/', report_views.report_detail, name='report_detail'),
+
+    # notification_views.py
+    path('notifications/', notification_views.notification_list, name='notification_list'),
+    path('notifications/<int:notification_id>/read/', notification_views.notification_read, name='notification_read'),
 ]

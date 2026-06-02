@@ -5,6 +5,7 @@ from django.utils import timezone
 
 from ..forms import AnswerForm
 from ..models import Question, Answer
+from ..notifications import create_notification
 
 
 @login_required(login_url='common:login')
@@ -21,6 +22,14 @@ def answer_create(request, question_id):
             answer.create_date = timezone.now()
             answer.question = question
             answer.save()
+            create_notification(
+                recipient=question.author,
+                actor=request.user,
+                notification_type='answer',
+                question=question,
+                answer=answer,
+                message=f'{request.user.username}님이 질문에 답변을 등록했습니다.',
+            )
             return redirect('pybo:detail', question_id=question.id)
     else:
         form = AnswerForm()
