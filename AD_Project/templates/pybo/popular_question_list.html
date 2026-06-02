@@ -5,14 +5,12 @@
     <table class="table">
         <thead>
         <tr class="text-center thead-dark">
-            <th>순위</th>
-            <th>점수</th>
+            <th>번호</th>
             <th>추천</th>
-            <th>댓글</th>
-            <th>조회</th>
-            <th>카테고리</th>
-            <th style="width:40%">제목</th>
+            <th>질문 유형</th>
+            <th style="width:50%">제목</th>
             <th>글쓴이</th>
+            <th>조회</th>
             <th>작성일시</th>
         </tr>
         </thead>
@@ -20,58 +18,32 @@
         {% if question_list %}
         {% for question in question_list %}
         <tr class="text-center">
-            <td>{{ question_list.start_index|add:forloop.counter0 }}</td>
-            <td><span class="badge badge-primary px-2 py-1">{{ question.popular_score }}</span></td>
-            <td>{{ question.vote_count }}</td>
-            <td>{{ question.comment_count }}</td>
-            <td>{{ question.view_count }}</td>
-            <td><span class="badge badge-secondary">{{ question.category.name }}</span></td>
+            <td>{{ forloop.counter }}</td>
+            <td>
+                {% if question.voter.all.count > 0 %}
+                <span class="badge badge-warning px-2 py-1">{{ question.voter.all.count }}</span>
+                {% endif %}
+            </td>
+            <td>
+                <span class="badge badge-secondary">{{ question.category.name }}</span>
+            </td>
             <td class="text-left">
                 <a href="{% url 'pybo:detail' question.id %}">{{ question.subject }}</a>
+                {% if question.answer_set.count > 0 %}
+                <span class="text-danger small ml-2">{{ question.answer_set.count }}</span>
+                {% endif %}
             </td>
             <td>{{ question.author.username }}</td>
+            <td>{{ question.view_count }}</td>
             <td>{{ question.create_date }}</td>
         </tr>
         {% endfor %}
         {% else %}
         <tr>
-            <td colspan="9">질문이 없습니다.</td>
+            <td colspan="7">질문이 없습니다.</td>
         </tr>
         {% endif %}
         </tbody>
     </table>
-    <ul class="pagination justify-content-center">
-        {% if question_list.has_previous %}
-        <li class="page-item">
-            <a class="page-link" href="?page={{ question_list.previous_page_number }}">이전</a>
-        </li>
-        {% else %}
-        <li class="page-item disabled">
-            <a class="page-link" tabindex="-1" aria-disabled="true" href="#">이전</a>
-        </li>
-        {% endif %}
-        {% for page_number in question_list.paginator.page_range %}
-        {% if page_number >= question_list.number|add:-5 and page_number <= question_list.number|add:5 %}
-            {% if page_number == question_list.number %}
-            <li class="page-item active" aria-current="page">
-                <a class="page-link" href="?page={{ page_number }}">{{ page_number }}</a>
-            </li>
-            {% else %}
-            <li class="page-item">
-                <a class="page-link" href="?page={{ page_number }}">{{ page_number }}</a>
-            </li>
-            {% endif %}
-        {% endif %}
-        {% endfor %}
-        {% if question_list.has_next %}
-        <li class="page-item">
-            <a class="page-link" href="?page={{ question_list.next_page_number }}">다음</a>
-        </li>
-        {% else %}
-        <li class="page-item disabled">
-            <a class="page-link" tabindex="-1" aria-disabled="true" href="#">다음</a>
-        </li>
-        {% endif %}
-    </ul>
 </div>
 {% endblock %}

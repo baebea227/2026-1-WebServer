@@ -19,7 +19,7 @@ class BookmarkViewsTests(FastPasswordTestCase):
     def setUp(self):
         self.user = User.objects.create_user(username='user', password='password')
         self.other_user = User.objects.create_user(username='other', password='password')
-        self.category = Category.objects.get(slug='qna')
+        self.category = Category.objects.get(slug='etc')
         self.question = Question.objects.create(
             category=self.category,
             author=self.other_user,
@@ -75,7 +75,7 @@ class MypageViewsTests(FastPasswordTestCase):
     def setUp(self):
         self.user = User.objects.create_user(username='user', password='password')
         self.other_user = User.objects.create_user(username='other', password='password')
-        self.category = Category.objects.get(slug='qna')
+        self.category = Category.objects.get(slug='etc')
         self.my_question = Question.objects.create(
             category=self.category,
             author=self.user,
@@ -160,20 +160,20 @@ class MypageViewsTests(FastPasswordTestCase):
 class CategoryViewsTests(FastPasswordTestCase):
     def setUp(self):
         self.user = User.objects.create_user(username='user', password='password')
-        self.qna = Category.objects.get(slug='qna')
-        self.lecture = Category.objects.get(slug='lecture')
-        self.free = Category.objects.get(slug='free')
-        self.qna_question = Question.objects.create(
-            category=self.qna,
+        self.error = Category.objects.get(slug='error')
+        self.concept = Category.objects.get(slug='concept')
+        self.environment = Category.objects.get(slug='environment')
+        self.error_question = Question.objects.create(
+            category=self.error,
             author=self.user,
-            subject='qna subject',
+            subject='error subject',
             content='common keyword',
             create_date=timezone.now(),
         )
-        self.lecture_question = Question.objects.create(
-            category=self.lecture,
+        self.concept_question = Question.objects.create(
+            category=self.concept,
             author=self.user,
-            subject='lecture subject',
+            subject='concept subject',
             content='common keyword',
             create_date=timezone.now(),
         )
@@ -183,18 +183,24 @@ class CategoryViewsTests(FastPasswordTestCase):
 
         self.assertEqual(
             categories,
-            {('qna', '질문답변'), ('lecture', '강좌'), ('free', '자유게시판')},
+            {
+                ('error', '에러/버그'),
+                ('concept', '개념/이론'),
+                ('implementation', '구현/코드'),
+                ('environment', '환경설정'),
+                ('etc', '기타'),
+            },
         )
 
     def test_index_filters_by_category(self):
-        response = self.client.get(reverse('pybo:index'), {'category': 'lecture'})
+        response = self.client.get(reverse('pybo:index'), {'category': 'concept'})
 
-        self.assertContains(response, self.lecture_question.subject)
-        self.assertNotContains(response, self.qna_question.subject)
+        self.assertContains(response, self.concept_question.subject)
+        self.assertNotContains(response, self.error_question.subject)
 
     def test_index_filters_by_category_and_keyword(self):
         hidden_question = Question.objects.create(
-            category=self.lecture,
+            category=self.concept,
             author=self.user,
             subject='hidden subject',
             content='other content',
@@ -203,52 +209,52 @@ class CategoryViewsTests(FastPasswordTestCase):
 
         response = self.client.get(
             reverse('pybo:index'),
-            {'category': 'lecture', 'kw': 'common'},
+            {'category': 'concept', 'kw': 'common'},
         )
 
-        self.assertContains(response, self.lecture_question.subject)
-        self.assertNotContains(response, self.qna_question.subject)
+        self.assertContains(response, self.concept_question.subject)
+        self.assertNotContains(response, self.error_question.subject)
         self.assertNotContains(response, hidden_question.subject)
 
     def test_question_create_saves_category(self):
         self.client.login(username='user', password='password')
 
         response = self.client.post(reverse('pybo:question_create'), {
-            'category': self.free.id,
-            'subject': 'free subject',
-            'content': 'free content',
+            'category': self.environment.id,
+            'subject': 'environment subject',
+            'content': 'environment content',
         })
 
         self.assertEqual(response.status_code, 302)
-        question = Question.objects.get(subject='free subject')
-        self.assertEqual(question.category, self.free)
+        question = Question.objects.get(subject='environment subject')
+        self.assertEqual(question.category, self.environment)
 
     def test_question_modify_updates_category(self):
         self.client.login(username='user', password='password')
 
         response = self.client.post(
-            reverse('pybo:question_modify', args=[self.qna_question.id]),
+            reverse('pybo:question_modify', args=[self.error_question.id]),
             {
-                'category': self.free.id,
-                'subject': self.qna_question.subject,
-                'content': self.qna_question.content,
+                'category': self.environment.id,
+                'subject': self.error_question.subject,
+                'content': self.error_question.content,
             },
         )
 
         self.assertEqual(response.status_code, 302)
-        self.qna_question.refresh_from_db()
-        self.assertEqual(self.qna_question.category, self.free)
+        self.error_question.refresh_from_db()
+        self.assertEqual(self.error_question.category, self.environment)
 
     def test_category_with_question_is_protected(self):
         with self.assertRaises(ProtectedError):
-            self.qna.delete()
+            self.error.delete()
 
 
 class PopularQuestionViewsTests(FastPasswordTestCase):
     def setUp(self):
         self.user = User.objects.create_user(username='user', password='password')
         self.other_user = User.objects.create_user(username='other', password='password')
-        self.category = Category.objects.get(slug='qna')
+        self.category = Category.objects.get(slug='etc')
 
     def create_question(self, subject, view_count=0, create_date=None):
         return Question.objects.create(
@@ -284,7 +290,7 @@ class PopularQuestionViewsTests(FastPasswordTestCase):
         question.refresh_from_db()
         self.assertEqual(question.view_count, 1)
 
-    def test_popular_questions_are_ordered_by_combined_score(self):
+    def test_popular_questions_are_ordered_by_weighted_score(self):
         low_score = self.create_question('low score', view_count=2)
         high_score = self.create_question('high score', view_count=1)
         answer = Answer.objects.create(
@@ -311,7 +317,8 @@ class PopularQuestionViewsTests(FastPasswordTestCase):
         questions = list(response.context['question_list'])
 
         self.assertEqual(questions[0], high_score)
-        self.assertEqual(questions[0].popular_score, 4)
+        self.assertEqual(questions[0].popular_score, 11)
+        self.assertEqual(questions[0].answer_count, 1)
         self.assertEqual(questions[0].comment_count, 2)
         self.assertEqual(questions[1], low_score)
 
@@ -329,15 +336,52 @@ class PopularQuestionViewsTests(FastPasswordTestCase):
         self.assertEqual(questions[0], new_question)
         self.assertEqual(questions[1], old_question)
 
-    def test_popular_questions_are_paginated(self):
+    def test_popular_questions_are_limited_to_top_10(self):
         for index in range(11):
             self.create_question(f'paginated question {index}', view_count=index)
 
         response = self.client.get(reverse('pybo:popular'), {'page': 2})
 
-        question_list = response.context['question_list']
-        self.assertEqual(question_list.number, 2)
-        self.assertEqual(len(question_list), 1)
+        questions = list(response.context['question_list'])
+        self.assertEqual(len(questions), 10)
+        self.assertEqual(questions[0].subject, 'paginated question 10')
+        self.assertEqual(questions[-1].subject, 'paginated question 1')
+        self.assertNotIn('paginated question 0', [question.subject for question in questions])
+        self.assertNotContains(response, '<ul class="pagination justify-content-center">')
+        self.assertNotContains(response, '<th>점수</th>', html=True)
+        self.assertNotContains(response, '<th>댓글</th>', html=True)
+        self.assertNotContains(response, '이전')
+        self.assertNotContains(response, '다음')
+
+    def test_popular_questions_use_pybo_question_list_layout(self):
+        question = self.create_question('popular layout question', view_count=1)
+        Answer.objects.create(
+            author=self.other_user,
+            question=question,
+            content='answer content',
+            create_date=timezone.now(),
+        )
+        question.voter.add(self.other_user)
+
+        response = self.client.get(reverse('pybo:popular'))
+
+        self.assertContains(response, '<th>번호</th>', html=True)
+        self.assertContains(response, '<th>추천</th>', html=True)
+        self.assertContains(response, '<th>질문 유형</th>', html=True)
+        self.assertContains(response, '<th style="width:50%">제목</th>', html=True)
+        self.assertContains(response, '<th>글쓴이</th>', html=True)
+        self.assertContains(response, '<th>조회</th>', html=True)
+        self.assertContains(response, '<th>작성일시</th>', html=True)
+        self.assertContains(
+            response,
+            '<span class="badge badge-warning px-2 py-1">1</span>',
+            html=True,
+        )
+        self.assertContains(
+            response,
+            '<span class="text-danger small ml-2">1</span>',
+            html=True,
+        )
 
 
 class ReportViewsTests(FastPasswordTestCase):
@@ -349,7 +393,7 @@ class ReportViewsTests(FastPasswordTestCase):
             password='password',
             is_staff=True,
         )
-        self.category = Category.objects.get(slug='qna')
+        self.category = Category.objects.get(slug='etc')
         self.question = Question.objects.create(
             category=self.category,
             author=self.author,
@@ -498,7 +542,7 @@ class NotificationViewsTests(FastPasswordTestCase):
         self.author = User.objects.create_user(username='author', password='password')
         self.actor = User.objects.create_user(username='actor', password='password')
         self.other_user = User.objects.create_user(username='other', password='password')
-        self.category = Category.objects.get(slug='qna')
+        self.category = Category.objects.get(slug='etc')
         self.question = Question.objects.create(
             category=self.category,
             author=self.author,

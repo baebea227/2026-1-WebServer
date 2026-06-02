@@ -2,7 +2,7 @@
 {% load pybo_filter %}
 {% block content %}
 <div class="container my-3">
-    <div class="btn-group mb-3" role="group" aria-label="카테고리">
+    <div class="btn-group mb-3" role="group" aria-label="질문 유형">
         <a href="javascript:void(0)"
            class="category-link btn btn-sm {% if not category %}btn-primary{% else %}btn-outline-primary{% endif %}"
            data-category="">전체</a>
@@ -30,7 +30,7 @@
         <tr class="text-center thead-dark">
             <th>번호</th>
             <th>추천</th>
-            <th>카테고리</th>
+            <th>질문 유형</th>
             <th style="width:50%">제목</th>
             <th>글쓴이</th>
             <th>조회</th>

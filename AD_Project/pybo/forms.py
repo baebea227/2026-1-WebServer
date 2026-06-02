@@ -8,7 +8,7 @@ class QuestionForm(forms.ModelForm):
         model = Question
         fields = ['category', 'subject', 'content']
         labels = {
-            'category': '카테고리',
+            'category': '질문 유형',
             'subject': '제목',
             'content': '내용',
         }

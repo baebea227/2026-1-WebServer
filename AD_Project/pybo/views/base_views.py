@@ -12,7 +12,7 @@ def index(request):
     # 입력 파라미터
     page = request.GET.get('page', '1')  # 페이지
     kw = request.GET.get('kw', '')  # 검색어
-    category_slug = request.GET.get('category', '')  # 카테고리
+    category_slug = request.GET.get('category', '')  # 질문 유형
 
     # 조회
     category_list = Category.objects.order_by('id')
@@ -46,23 +46,20 @@ def popular(request):
     """
     인기 질문 목록 출력
     """
-    page = request.GET.get('page', '1')
     question_list = Question.objects.select_related('category', 'author').annotate(
         vote_count=Count('voter', distinct=True),
+        answer_count=Count('answer', distinct=True),
         question_comment_count=Count('comment', distinct=True),
         answer_comment_count=Count('answer__comment', distinct=True),
     ).annotate(
         comment_count=F('question_comment_count') + F('answer_comment_count'),
         popular_score=ExpressionWrapper(
-            F('vote_count') + F('comment_count') + F('view_count'),
+            F('vote_count') * 5 + F('answer_count') * 3 + F('comment_count') + F('view_count'),
             output_field=IntegerField(),
         ),
-    ).order_by('-popular_score', '-create_date')
+    ).order_by('-popular_score', '-create_date')[:10]
 
-    paginator = Paginator(question_list, 10)
-    page_obj = paginator.get_page(page)
-
-    context = {'question_list': page_obj}
+    context = {'question_list': question_list}
     return render(request, 'pybo/popular_question_list.html', context)
 
 
