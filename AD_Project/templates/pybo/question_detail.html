@@ -41,6 +41,17 @@
                            data-uri="{% url 'pybo:question_delete' question.id  %}">삭제</a>
                     </div>
                     {% endif %}
+                    <div class="my-3">
+                        {% if request.user in question.bookmark.all %}
+                        <a href="#" class="bookmark btn btn-sm btn-outline-secondary"
+                           data-uri="{% url 'pybo:bookmark_question' question.id  %}"
+                           data-message="북마크를 해제하시겠습니까?">북마크 해제</a>
+                        {% else %}
+                        <a href="#" class="bookmark btn btn-sm btn-outline-secondary"
+                           data-uri="{% url 'pybo:bookmark_question' question.id  %}"
+                           data-message="북마크하시겠습니까?">북마크</a>
+                        {% endif %}
+                    </div>
                     <!-- 질문 댓글 Start -->
                     {% if question.comment_set.count > 0 %}
                     <div class="mt-3">
@@ -162,6 +173,11 @@ $(document).ready(function(){
     });
     $(".recommend").on('click', function() {
         if(confirm("정말로 추천하시겠습니까?")) {
+            location.href = $(this).data('uri');
+        }
+    });
+    $(".bookmark").on('click', function() {
+        if(confirm($(this).data('message'))) {
             location.href = $(this).data('uri');
         }
     });
