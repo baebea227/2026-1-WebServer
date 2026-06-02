@@ -1,0 +1,44 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="container my-3">
+    <h4 class="border-bottom py-2">인기 질문</h4>
+    <table class="table">
+        <thead>
+        <tr class="text-center thead-dark">
+            <th>순위</th>
+            <th>점수</th>
+            <th>추천</th>
+            <th>댓글</th>
+            <th>조회</th>
+            <th>카테고리</th>
+            <th style="width:40%">제목</th>
+            <th>글쓴이</th>
+            <th>작성일시</th>
+        </tr>
+        </thead>
+        <tbody>
+        {% if question_list %}
+        {% for question in question_list %}
+        <tr class="text-center">
+            <td>{{ forloop.counter }}</td>
+            <td><span class="badge badge-primary px-2 py-1">{{ question.popular_score }}</span></td>
+            <td>{{ question.vote_count }}</td>
+            <td>{{ question.comment_count }}</td>
+            <td>{{ question.view_count }}</td>
+            <td><span class="badge badge-secondary">{{ question.category.name }}</span></td>
+            <td class="text-left">
+                <a href="{% url 'pybo:detail' question.id %}">{{ question.subject }}</a>
+            </td>
+            <td>{{ question.author.username }}</td>
+            <td>{{ question.create_date }}</td>
+        </tr>
+        {% endfor %}
+        {% else %}
+        <tr>
+            <td colspan="9">질문이 없습니다.</td>
+        </tr>
+        {% endif %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

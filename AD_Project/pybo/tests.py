@@ -1,3 +1,5 @@
+from datetime import timedelta
+
 from django.contrib.auth.models import User
 from django.db.models import ProtectedError
 from django.test import TestCase
@@ -227,6 +229,82 @@ class CategoryViewsTests(TestCase):
     def test_category_with_question_is_protected(self):
         with self.assertRaises(ProtectedError):
             self.qna.delete()
+
+
+class PopularQuestionViewsTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(username='user', password='password')
+        self.other_user = User.objects.create_user(username='other', password='password')
+        self.category = Category.objects.get(slug='qna')
+
+    def create_question(self, subject, view_count=0, create_date=None):
+        return Question.objects.create(
+            category=self.category,
+            author=self.user,
+            subject=subject,
+            content=f'{subject} content',
+            create_date=create_date or timezone.now(),
+            view_count=view_count,
+        )
+
+    def test_question_view_count_defaults_to_zero(self):
+        question = self.create_question('default view count')
+
+        self.assertEqual(question.view_count, 0)
+
+    def test_detail_increments_question_view_count(self):
+        question = self.create_question('viewed question')
+
+        response = self.client.get(reverse('pybo:detail', args=[question.id]))
+
+        self.assertEqual(response.status_code, 200)
+        question.refresh_from_db()
+        self.assertEqual(question.view_count, 1)
+
+    def test_popular_questions_are_ordered_by_combined_score(self):
+        low_score = self.create_question('low score', view_count=2)
+        high_score = self.create_question('high score', view_count=1)
+        answer = Answer.objects.create(
+            author=self.other_user,
+            question=high_score,
+            content='answer content',
+            create_date=timezone.now(),
+        )
+        high_score.voter.add(self.other_user)
+        Comment.objects.create(
+            author=self.other_user,
+            question=high_score,
+            content='question comment',
+            create_date=timezone.now(),
+        )
+        Comment.objects.create(
+            author=self.other_user,
+            answer=answer,
+            content='answer comment',
+            create_date=timezone.now(),
+        )
+
+        response = self.client.get(reverse('pybo:popular'))
+        questions = list(response.context['question_list'])
+
+        self.assertEqual(questions[0], high_score)
+        self.assertEqual(questions[0].popular_score, 4)
+        self.assertEqual(questions[0].comment_count, 2)
+        self.assertEqual(questions[1], low_score)
+
+    def test_popular_questions_with_same_score_are_ordered_by_latest_first(self):
+        old_question = self.create_question(
+            'old same score',
+            view_count=1,
+            create_date=timezone.now() - timedelta(days=1),
+        )
+        new_question = self.create_question('new same score', view_count=1)
+
+        response = self.client.get(reverse('pybo:popular'))
+        questions = list(response.context['question_list'])
+
+        self.assertEqual(questions[0], new_question)
+        self.assertEqual(questions[1], old_question)
 
 
 class ReportViewsTests(TestCase):

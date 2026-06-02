@@ -1,5 +1,5 @@
 from django.core.paginator import Paginator
-from django.db.models import Q
+from django.db.models import Count, ExpressionWrapper, F, IntegerField, Q
 from django.shortcuts import render, get_object_or_404
 
 from ..models import Category, Question
@@ -42,10 +42,32 @@ def index(request):
     return render(request, 'pybo/question_list.html', context)
 
 
+def popular(request):
+    """
+    인기 질문 목록 출력
+    """
+    question_list = Question.objects.select_related('category', 'author').annotate(
+        vote_count=Count('voter', distinct=True),
+        question_comment_count=Count('comment', distinct=True),
+        answer_comment_count=Count('answer__comment', distinct=True),
+    ).annotate(
+        comment_count=F('question_comment_count') + F('answer_comment_count'),
+        popular_score=ExpressionWrapper(
+            F('vote_count') + F('comment_count') + F('view_count'),
+            output_field=IntegerField(),
+        ),
+    ).order_by('-popular_score', '-create_date')
+
+    context = {'question_list': question_list}
+    return render(request, 'pybo/popular_question_list.html', context)
+
+
 def detail(request, question_id):
     """
     pybo 내용 출력
     """
     question = get_object_or_404(Question, pk=question_id)
+    Question.objects.filter(pk=question_id).update(view_count=F('view_count') + 1)
+    question.refresh_from_db(fields=['view_count'])
     context = {'question': question}
     return render(request, 'pybo/question_detail.html', context)
