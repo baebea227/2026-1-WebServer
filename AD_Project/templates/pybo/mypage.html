@@ -1,0 +1,145 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="container my-3">
+    <h5 class="border-bottom my-3 py-2">마이페이지</h5>
+    <div class="mb-3 text-muted">{{ user.username }}님의 최근 활동입니다.</div>
+
+    <div class="row">
+        <div class="col-md-6">
+            <h6 class="border-bottom my-3 py-2">내가 작성한 질문</h6>
+            <table class="table table-sm">
+                <tbody>
+                {% if my_questions %}
+                {% for question in my_questions %}
+                <tr>
+                    <td>
+                        <a href="{% url 'pybo:detail' question.id %}">{{ question.subject }}</a>
+                        <span class="badge badge-secondary ml-1">{{ question.category.name }}</span>
+                    </td>
+                    <td class="text-right text-muted">{{ question.create_date }}</td>
+                </tr>
+                {% endfor %}
+                {% else %}
+                <tr><td>작성한 질문이 없습니다.</td></tr>
+                {% endif %}
+                </tbody>
+            </table>
+        </div>
+
+        <div class="col-md-6">
+            <h6 class="border-bottom my-3 py-2">내가 작성한 답변</h6>
+            <table class="table table-sm">
+                <tbody>
+                {% if my_answers %}
+                {% for answer in my_answers %}
+                <tr>
+                    <td>
+                        <a href="{% url 'pybo:detail' answer.question.id %}">{{ answer.question.subject }}</a>
+                        <div class="small text-muted">{{ answer.content|truncatechars:60 }}</div>
+                    </td>
+                    <td class="text-right text-muted">{{ answer.create_date }}</td>
+                </tr>
+                {% endfor %}
+                {% else %}
+                <tr><td>작성한 답변이 없습니다.</td></tr>
+                {% endif %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-6">
+            <h6 class="border-bottom my-3 py-2">내가 작성한 댓글</h6>
+            <table class="table table-sm">
+                <tbody>
+                {% if my_comments %}
+                {% for comment in my_comments %}
+                <tr>
+                    <td>
+                        {% if comment.question %}
+                        <span class="badge badge-info">질문 댓글</span>
+                        <a href="{% url 'pybo:detail' comment.question.id %}">{{ comment.question.subject }}</a>
+                        {% else %}
+                        <span class="badge badge-info">답변 댓글</span>
+                        <a href="{% url 'pybo:detail' comment.answer.question.id %}">{{ comment.answer.question.subject }}</a>
+                        {% endif %}
+                        <div class="small text-muted">{{ comment.content|truncatechars:60 }}</div>
+                    </td>
+                    <td class="text-right text-muted">{{ comment.create_date }}</td>
+                </tr>
+                {% endfor %}
+                {% else %}
+                <tr><td>작성한 댓글이 없습니다.</td></tr>
+                {% endif %}
+                </tbody>
+            </table>
+        </div>
+
+        <div class="col-md-6">
+            <h6 class="border-bottom my-3 py-2">추천한 질문</h6>
+            <table class="table table-sm">
+                <tbody>
+                {% if voted_questions %}
+                {% for question in voted_questions %}
+                <tr>
+                    <td>
+                        <a href="{% url 'pybo:detail' question.id %}">{{ question.subject }}</a>
+                        <span class="badge badge-secondary ml-1">{{ question.category.name }}</span>
+                    </td>
+                    <td class="text-right text-muted">{{ question.create_date }}</td>
+                </tr>
+                {% endfor %}
+                {% else %}
+                <tr><td>추천한 질문이 없습니다.</td></tr>
+                {% endif %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-6">
+            <h6 class="border-bottom my-3 py-2">추천한 답변</h6>
+            <table class="table table-sm">
+                <tbody>
+                {% if voted_answers %}
+                {% for answer in voted_answers %}
+                <tr>
+                    <td>
+                        <a href="{% url 'pybo:detail' answer.question.id %}">{{ answer.question.subject }}</a>
+                        <div class="small text-muted">{{ answer.content|truncatechars:60 }}</div>
+                    </td>
+                    <td class="text-right text-muted">{{ answer.create_date }}</td>
+                </tr>
+                {% endfor %}
+                {% else %}
+                <tr><td>추천한 답변이 없습니다.</td></tr>
+                {% endif %}
+                </tbody>
+            </table>
+        </div>
+
+        <div class="col-md-6">
+            <h6 class="border-bottom my-3 py-2">북마크한 질문</h6>
+            <table class="table table-sm">
+                <tbody>
+                {% if bookmarked_questions %}
+                {% for question in bookmarked_questions %}
+                <tr>
+                    <td>
+                        <a href="{% url 'pybo:detail' question.id %}">{{ question.subject }}</a>
+                        <span class="badge badge-secondary ml-1">{{ question.category.name }}</span>
+                    </td>
+                    <td class="text-right text-muted">{{ question.create_date }}</td>
+                </tr>
+                {% endfor %}
+                {% else %}
+                <tr><td>북마크한 질문이 없습니다.</td></tr>
+                {% endif %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

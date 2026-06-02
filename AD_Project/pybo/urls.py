@@ -1,6 +1,6 @@
 from django.urls import path
 
-from .views import base_views, question_views, answer_views, comment_views, vote_views, bookmark_views, report_views
+from .views import base_views, question_views, answer_views, comment_views, vote_views, bookmark_views, report_views, mypage_views
 
 app_name = 'pybo'
 
@@ -34,6 +34,9 @@ urlpatterns = [
     # bookmark_views.py
     path('bookmark/question/<int:question_id>/', bookmark_views.bookmark_question, name='bookmark_question'),
     path('bookmark/', bookmark_views.bookmark_list, name='bookmark_list'),
+
+    # mypage_views.py
+    path('mypage/', mypage_views.mypage, name='mypage'),
 
     # report_views.py
     path('report/<str:target_type>/<int:target_id>/', report_views.report_create, name='report_create'),

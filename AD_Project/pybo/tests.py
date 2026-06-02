@@ -4,7 +4,7 @@ from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
 
-from .models import Category, ContentReport, Question
+from .models import Answer, Category, Comment, ContentReport, Question
 
 
 class BookmarkViewsTests(TestCase):
@@ -54,6 +54,92 @@ class BookmarkViewsTests(TestCase):
 
         self.assertContains(response, self.question.subject)
         self.assertNotContains(response, other_question.subject)
+
+
+class MypageViewsTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(username='user', password='password')
+        self.other_user = User.objects.create_user(username='other', password='password')
+        self.category = Category.objects.get(slug='qna')
+        self.my_question = Question.objects.create(
+            category=self.category,
+            author=self.user,
+            subject='my question subject',
+            content='my question content',
+            create_date=timezone.now(),
+        )
+        self.other_question = Question.objects.create(
+            category=self.category,
+            author=self.other_user,
+            subject='other question subject',
+            content='other question content',
+            create_date=timezone.now(),
+        )
+        self.my_answer = Answer.objects.create(
+            author=self.user,
+            question=self.other_question,
+            content='my answer content',
+            create_date=timezone.now(),
+        )
+        self.other_answer = Answer.objects.create(
+            author=self.other_user,
+            question=self.my_question,
+            content='other answer content',
+            create_date=timezone.now(),
+        )
+        self.question_comment = Comment.objects.create(
+            author=self.user,
+            question=self.other_question,
+            content='my question comment',
+            create_date=timezone.now(),
+        )
+        self.answer_comment = Comment.objects.create(
+            author=self.user,
+            answer=self.other_answer,
+            content='my answer comment',
+            create_date=timezone.now(),
+        )
+        Comment.objects.create(
+            author=self.other_user,
+            question=self.my_question,
+            content='other comment content',
+            create_date=timezone.now(),
+        )
+        self.other_question.voter.add(self.user)
+        self.other_answer.voter.add(self.user)
+        self.other_question.bookmark.add(self.user)
+
+    def test_mypage_requires_login(self):
+        response = self.client.get(reverse('pybo:mypage'))
+
+        self.assertEqual(response.status_code, 302)
+        self.assertIn(reverse('common:login'), response.url)
+
+    def test_mypage_shows_only_current_user_activity(self):
+        self.client.login(username='user', password='password')
+
+        response = self.client.get(reverse('pybo:mypage'))
+
+        self.assertContains(response, self.my_question.subject)
+        self.assertContains(response, self.my_answer.content)
+        self.assertContains(response, self.question_comment.content)
+        self.assertContains(response, self.answer_comment.content)
+        self.assertContains(response, self.other_question.subject)
+        self.assertContains(response, self.other_answer.content)
+        self.assertNotContains(response, 'other comment content')
+
+    def test_mypage_shows_empty_messages(self):
+        User.objects.create_user(username='empty', password='password')
+        self.client.login(username='empty', password='password')
+
+        response = self.client.get(reverse('pybo:mypage'))
+
+        self.assertContains(response, '작성한 질문이 없습니다.')
+        self.assertContains(response, '작성한 답변이 없습니다.')
+        self.assertContains(response, '작성한 댓글이 없습니다.')
+        self.assertContains(response, '추천한 질문이 없습니다.')
+        self.assertContains(response, '추천한 답변이 없습니다.')
+        self.assertContains(response, '북마크한 질문이 없습니다.')
 
 
 class CategoryViewsTests(TestCase):
