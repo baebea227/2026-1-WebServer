@@ -46,6 +46,7 @@ def popular(request):
     """
     인기 질문 목록 출력
     """
+    page = request.GET.get('page', '1')
     question_list = Question.objects.select_related('category', 'author').annotate(
         vote_count=Count('voter', distinct=True),
         question_comment_count=Count('comment', distinct=True),
@@ -58,7 +59,10 @@ def popular(request):
         ),
     ).order_by('-popular_score', '-create_date')
 
-    context = {'question_list': question_list}
+    paginator = Paginator(question_list, 10)
+    page_obj = paginator.get_page(page)
+
+    context = {'question_list': page_obj}
     return render(request, 'pybo/popular_question_list.html', context)
 
 
@@ -67,7 +71,12 @@ def detail(request, question_id):
     pybo 내용 출력
     """
     question = get_object_or_404(Question, pk=question_id)
-    Question.objects.filter(pk=question_id).update(view_count=F('view_count') + 1)
-    question.refresh_from_db(fields=['view_count'])
+    viewed_question_ids = request.session.get('viewed_question_ids', [])
+    question_key = str(question_id)
+    if question_key not in viewed_question_ids:
+        Question.objects.filter(pk=question_id).update(view_count=F('view_count') + 1)
+        question.refresh_from_db(fields=['view_count'])
+        viewed_question_ids.append(question_key)
+        request.session['viewed_question_ids'] = viewed_question_ids
     context = {'question': question}
     return render(request, 'pybo/question_detail.html', context)

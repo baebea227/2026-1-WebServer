@@ -23,7 +23,12 @@
                 {% endif %}
             </td>
             <td class="text-left">
-                <a href="{% url 'pybo:notification_read' notification.id %}">{{ notification.message }}</a>
+                <form action="{% url 'pybo:notification_read' notification.id %}" method="post" class="d-inline">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-link p-0 align-baseline text-left">
+                        {{ notification.message }}
+                    </button>
+                </form>
             </td>
             <td>{{ notification.actor.username }}</td>
             <td>{{ notification.create_date }}</td>

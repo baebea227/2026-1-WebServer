@@ -20,7 +20,7 @@
         {% if question_list %}
         {% for question in question_list %}
         <tr class="text-center">
-            <td>{{ forloop.counter }}</td>
+            <td>{{ question_list.start_index|add:forloop.counter0 }}</td>
             <td><span class="badge badge-primary px-2 py-1">{{ question.popular_score }}</span></td>
             <td>{{ question.vote_count }}</td>
             <td>{{ question.comment_count }}</td>
@@ -40,5 +40,38 @@
         {% endif %}
         </tbody>
     </table>
+    <ul class="pagination justify-content-center">
+        {% if question_list.has_previous %}
+        <li class="page-item">
+            <a class="page-link" href="?page={{ question_list.previous_page_number }}">이전</a>
+        </li>
+        {% else %}
+        <li class="page-item disabled">
+            <a class="page-link" tabindex="-1" aria-disabled="true" href="#">이전</a>
+        </li>
+        {% endif %}
+        {% for page_number in question_list.paginator.page_range %}
+        {% if page_number >= question_list.number|add:-5 and page_number <= question_list.number|add:5 %}
+            {% if page_number == question_list.number %}
+            <li class="page-item active" aria-current="page">
+                <a class="page-link" href="?page={{ page_number }}">{{ page_number }}</a>
+            </li>
+            {% else %}
+            <li class="page-item">
+                <a class="page-link" href="?page={{ page_number }}">{{ page_number }}</a>
+            </li>
+            {% endif %}
+        {% endif %}
+        {% endfor %}
+        {% if question_list.has_next %}
+        <li class="page-item">
+            <a class="page-link" href="?page={{ question_list.next_page_number }}">다음</a>
+        </li>
+        {% else %}
+        <li class="page-item disabled">
+            <a class="page-link" tabindex="-1" aria-disabled="true" href="#">다음</a>
+        </li>
+        {% endif %}
+    </ul>
 </div>
 {% endblock %}

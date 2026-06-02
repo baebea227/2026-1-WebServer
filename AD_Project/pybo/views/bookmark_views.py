@@ -1,10 +1,12 @@
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
 from django.shortcuts import get_object_or_404, redirect, render
+from django.views.decorators.http import require_POST
 
 from ..models import Question
 
 
+@require_POST
 @login_required(login_url='common:login')
 def bookmark_question(request, question_id):
     """

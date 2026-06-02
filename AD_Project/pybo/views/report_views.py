@@ -1,6 +1,7 @@
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.core.paginator import Paginator
+from django.db import IntegrityError
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 
@@ -38,7 +39,11 @@ def report_create(request, target_type, target_id):
         messages.error(request, '본인이 작성한 콘텐츠는 신고할 수 없습니다.')
         return redirect('pybo:detail', question_id=question_id)
 
-    duplicate_report = ContentReport.objects.filter(reporter=request.user, **target_fields).exists()
+    duplicate_report = ContentReport.objects.filter(
+        reporter=request.user,
+        target_type=target_type,
+        target_object_id=target.id,
+    ).exists()
     if duplicate_report:
         messages.error(request, '이미 신고한 콘텐츠입니다.')
         return redirect('pybo:detail', question_id=question_id)
@@ -51,7 +56,11 @@ def report_create(request, target_type, target_id):
             report = form.save(commit=False)
             report.reporter = request.user
             report.create_date = timezone.now()
-            report.save()
+            try:
+                report.save()
+            except IntegrityError:
+                messages.error(request, '이미 신고한 콘텐츠입니다.')
+                return redirect('pybo:detail', question_id=question_id)
             messages.success(request, '신고가 접수되었습니다.')
             return redirect('pybo:detail', question_id=question_id)
     else:

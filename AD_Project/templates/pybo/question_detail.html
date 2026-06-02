@@ -51,13 +51,17 @@
                     {% endif %}
                     <div class="my-3">
                         {% if request.user in question.bookmark.all %}
-                        <a href="#" class="bookmark btn btn-sm btn-outline-secondary"
-                           data-uri="{% url 'pybo:bookmark_question' question.id  %}"
-                           data-message="북마크를 해제하시겠습니까?">북마크 해제</a>
+                        <form action="{% url 'pybo:bookmark_question' question.id  %}" method="post"
+                              class="bookmark-form d-inline" data-message="북마크를 해제하시겠습니까?">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-sm btn-outline-secondary">북마크 해제</button>
+                        </form>
                         {% else %}
-                        <a href="#" class="bookmark btn btn-sm btn-outline-secondary"
-                           data-uri="{% url 'pybo:bookmark_question' question.id  %}"
-                           data-message="북마크하시겠습니까?">북마크</a>
+                        <form action="{% url 'pybo:bookmark_question' question.id  %}" method="post"
+                              class="bookmark-form d-inline" data-message="북마크하시겠습니까?">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-sm btn-outline-secondary">북마크</button>
+                        </form>
                         {% endif %}
                     </div>
                     <!-- 질문 댓글 Start -->
@@ -193,10 +197,8 @@ $(document).ready(function(){
             location.href = $(this).data('uri');
         }
     });
-    $(".bookmark").on('click', function() {
-        if(confirm($(this).data('message'))) {
-            location.href = $(this).data('uri');
-        }
+    $(".bookmark-form").on('submit', function() {
+        return confirm($(this).data('message'));
     });
 });
 </script>

@@ -15,8 +15,20 @@
             <th class="w-25">신고 대상</th>
             <td>
                 {{ report.get_target_type_display }}
-                <a href="{% url 'pybo:detail' report.target_question_id %}" class="btn btn-sm btn-outline-secondary ml-2">원문 보기</a>
+                {% if report.current_question_id %}
+                <a href="{% url 'pybo:detail' report.current_question_id %}" class="btn btn-sm btn-outline-secondary ml-2">원문 보기</a>
+                {% else %}
+                <span class="badge badge-secondary ml-2">원문 삭제됨</span>
+                {% endif %}
             </td>
+        </tr>
+        <tr>
+            <th>원문 제목</th>
+            <td>{{ report.target_subject|default:"-" }}</td>
+        </tr>
+        <tr>
+            <th>원문 작성자</th>
+            <td>{{ report.target_author|default:"-" }}</td>
         </tr>
         <tr>
             <th>신고 사유</th>
@@ -47,9 +59,9 @@
         </tbody>
     </table>
     <div class="card my-3">
-        <div class="card-header">원문 내용</div>
+        <div class="card-header">신고 당시 원문 내용</div>
         <div class="card-body">
-            <div class="card-text" style="white-space: pre-line;">{{ report.target.content }}</div>
+            <div class="card-text" style="white-space: pre-line;">{{ report.target_content|default:"-" }}</div>
         </div>
     </div>
     <form method="post">

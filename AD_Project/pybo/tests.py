@@ -1,15 +1,21 @@
 from datetime import timedelta
 
 from django.contrib.auth.models import User
+from django.db import IntegrityError, transaction
 from django.db.models import ProtectedError
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
 
 from .models import Answer, Category, Comment, ContentReport, Notification, Question
 
 
-class BookmarkViewsTests(TestCase):
+@override_settings(PASSWORD_HASHERS=['django.contrib.auth.hashers.MD5PasswordHasher'])
+class FastPasswordTestCase(TestCase):
+    pass
+
+
+class BookmarkViewsTests(FastPasswordTestCase):
     def setUp(self):
         self.user = User.objects.create_user(username='user', password='password')
         self.other_user = User.objects.create_user(username='other', password='password')
@@ -25,19 +31,26 @@ class BookmarkViewsTests(TestCase):
     def test_bookmark_requires_login(self):
         url = reverse('pybo:bookmark_question', args=[self.question.id])
 
-        response = self.client.get(url)
+        response = self.client.post(url)
 
         self.assertEqual(response.status_code, 302)
         self.assertIn(reverse('common:login'), response.url)
+
+    def test_bookmark_get_method_is_not_allowed(self):
+        self.client.login(username='user', password='password')
+
+        response = self.client.get(reverse('pybo:bookmark_question', args=[self.question.id]))
+
+        self.assertEqual(response.status_code, 405)
 
     def test_bookmark_question_toggles_current_user(self):
         self.client.login(username='user', password='password')
         url = reverse('pybo:bookmark_question', args=[self.question.id])
 
-        self.client.get(url)
+        self.client.post(url)
         self.assertTrue(self.question.bookmark.filter(id=self.user.id).exists())
 
-        self.client.get(url)
+        self.client.post(url)
         self.assertFalse(self.question.bookmark.filter(id=self.user.id).exists())
 
     def test_bookmark_list_shows_only_current_user_bookmarks(self):
@@ -58,7 +71,7 @@ class BookmarkViewsTests(TestCase):
         self.assertNotContains(response, other_question.subject)
 
 
-class MypageViewsTests(TestCase):
+class MypageViewsTests(FastPasswordTestCase):
     def setUp(self):
         self.user = User.objects.create_user(username='user', password='password')
         self.other_user = User.objects.create_user(username='other', password='password')
@@ -144,7 +157,7 @@ class MypageViewsTests(TestCase):
         self.assertContains(response, '북마크한 질문이 없습니다.')
 
 
-class CategoryViewsTests(TestCase):
+class CategoryViewsTests(FastPasswordTestCase):
     def setUp(self):
         self.user = User.objects.create_user(username='user', password='password')
         self.qna = Category.objects.get(slug='qna')
@@ -231,7 +244,7 @@ class CategoryViewsTests(TestCase):
             self.qna.delete()
 
 
-class PopularQuestionViewsTests(TestCase):
+class PopularQuestionViewsTests(FastPasswordTestCase):
     def setUp(self):
         self.user = User.objects.create_user(username='user', password='password')
         self.other_user = User.objects.create_user(username='other', password='password')
@@ -258,6 +271,16 @@ class PopularQuestionViewsTests(TestCase):
         response = self.client.get(reverse('pybo:detail', args=[question.id]))
 
         self.assertEqual(response.status_code, 200)
+        question.refresh_from_db()
+        self.assertEqual(question.view_count, 1)
+
+    def test_detail_increments_view_count_once_per_session(self):
+        question = self.create_question('session viewed question')
+        url = reverse('pybo:detail', args=[question.id])
+
+        self.client.get(url)
+        self.client.get(url)
+
         question.refresh_from_db()
         self.assertEqual(question.view_count, 1)
 
@@ -306,8 +329,18 @@ class PopularQuestionViewsTests(TestCase):
         self.assertEqual(questions[0], new_question)
         self.assertEqual(questions[1], old_question)
 
+    def test_popular_questions_are_paginated(self):
+        for index in range(11):
+            self.create_question(f'paginated question {index}', view_count=index)
 
-class ReportViewsTests(TestCase):
+        response = self.client.get(reverse('pybo:popular'), {'page': 2})
+
+        question_list = response.context['question_list']
+        self.assertEqual(question_list.number, 2)
+        self.assertEqual(len(question_list), 1)
+
+
+class ReportViewsTests(FastPasswordTestCase):
     def setUp(self):
         self.reporter = User.objects.create_user(username='reporter', password='password')
         self.author = User.objects.create_user(username='author', password='password')
@@ -349,6 +382,12 @@ class ReportViewsTests(TestCase):
         self.assertEqual(report.reporter, self.reporter)
         self.assertEqual(report.question, self.question)
         self.assertEqual(report.status, 'pending')
+        self.assertEqual(report.target_type, 'question')
+        self.assertEqual(report.target_object_id, self.question.id)
+        self.assertEqual(report.target_question_id, self.question.id)
+        self.assertEqual(report.target_author, self.author.username)
+        self.assertEqual(report.target_subject, self.question.subject)
+        self.assertEqual(report.target_content, self.question.content)
 
     def test_report_create_blocks_duplicate_report(self):
         ContentReport.objects.create(
@@ -368,6 +407,60 @@ class ReportViewsTests(TestCase):
         )
 
         self.assertEqual(ContentReport.objects.count(), 1)
+
+    def test_duplicate_report_is_blocked_by_database_constraint(self):
+        ContentReport.objects.create(
+            reporter=self.reporter,
+            question=self.question,
+            reason='spam',
+            create_date=timezone.now(),
+        )
+
+        with self.assertRaises(IntegrityError):
+            with transaction.atomic():
+                ContentReport.objects.create(
+                    reporter=self.reporter,
+                    question=self.question,
+                    reason='abuse',
+                    create_date=timezone.now(),
+                )
+
+    def test_report_detail_shows_snapshot_after_target_is_modified(self):
+        report = ContentReport.objects.create(
+            reporter=self.reporter,
+            question=self.question,
+            reason='spam',
+            create_date=timezone.now(),
+        )
+        self.question.subject = 'modified report subject'
+        self.question.content = 'modified report content'
+        self.question.save()
+        self.client.login(username='staff', password='password')
+
+        response = self.client.get(reverse('pybo:report_detail', args=[report.id]))
+
+        self.assertContains(response, 'report subject')
+        self.assertContains(response, 'report content')
+        self.assertNotContains(response, 'modified report content')
+
+    def test_report_detail_survives_deleted_target(self):
+        report = ContentReport.objects.create(
+            reporter=self.reporter,
+            question=self.question,
+            reason='spam',
+            create_date=timezone.now(),
+        )
+        self.question.delete()
+        report.refresh_from_db()
+        self.client.login(username='staff', password='password')
+
+        response = self.client.get(reverse('pybo:report_detail', args=[report.id]))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIsNone(report.question)
+        self.assertContains(response, 'report content')
+        self.assertContains(response, '원문 삭제됨')
+        self.assertNotContains(response, '원문 보기')
 
     def test_report_list_requires_staff(self):
         self.client.login(username='reporter', password='password')
@@ -400,7 +493,7 @@ class ReportViewsTests(TestCase):
         self.assertEqual(report.reviewed_by, self.staff)
 
 
-class NotificationViewsTests(TestCase):
+class NotificationViewsTests(FastPasswordTestCase):
     def setUp(self):
         self.author = User.objects.create_user(username='author', password='password')
         self.actor = User.objects.create_user(username='actor', password='password')
@@ -554,8 +647,25 @@ class NotificationViewsTests(TestCase):
         )
         self.client.login(username='author', password='password')
 
-        response = self.client.get(reverse('pybo:notification_read', args=[notification.id]))
+        response = self.client.post(reverse('pybo:notification_read', args=[notification.id]))
 
         self.assertRedirects(response, reverse('pybo:detail', args=[self.question.id]))
         notification.refresh_from_db()
         self.assertIsNotNone(notification.read_date)
+
+    def test_notification_read_get_method_is_not_allowed(self):
+        notification = Notification.objects.create(
+            recipient=self.author,
+            actor=self.actor,
+            notification_type='comment',
+            question=self.question,
+            message='read notification',
+            create_date=timezone.now(),
+        )
+        self.client.login(username='author', password='password')
+
+        response = self.client.get(reverse('pybo:notification_read', args=[notification.id]))
+
+        self.assertEqual(response.status_code, 405)
+        notification.refresh_from_db()
+        self.assertIsNone(notification.read_date)

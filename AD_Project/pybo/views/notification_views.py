@@ -2,6 +2,7 @@ from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
+from django.views.decorators.http import require_POST
 
 from ..models import Notification
 
@@ -24,6 +25,7 @@ def notification_list(request):
     return render(request, 'pybo/notification_list.html', context)
 
 
+@require_POST
 @login_required(login_url='common:login')
 def notification_read(request, notification_id):
     notification = get_object_or_404(

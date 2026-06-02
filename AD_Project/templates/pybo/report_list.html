@@ -37,9 +37,14 @@
         <tr class="text-center">
             <td>{{ report.id }}</td>
             <td>
-                <a href="{% url 'pybo:detail' report.target_question_id %}">
+                {% if report.current_question_id %}
+                <a href="{% url 'pybo:detail' report.current_question_id %}">
                     {{ report.get_target_type_display }}
                 </a>
+                {% else %}
+                {{ report.get_target_type_display }}
+                <span class="badge badge-secondary">원문 삭제됨</span>
+                {% endif %}
             </td>
             <td>{{ report.get_reason_display }}</td>
             <td>{{ report.get_status_display }}</td>
