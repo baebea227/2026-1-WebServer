@@ -31,7 +31,10 @@
                 </a>
             </li>
             <li class="nav-item ">
-                <a class="nav-link" href="{% url 'common:logout' %}">{{ user.username }} (로그아웃)</a>
+                <form method="post" action="{% url 'common:logout' %}" class="d-inline">
+                    {% csrf_token %}
+                    <button type="submit" class="nav-link btn btn-link">{{ user.username }} (로그아웃)</button>
+                </form>
             </li>
             {% else %}
             <li class="nav-item ">

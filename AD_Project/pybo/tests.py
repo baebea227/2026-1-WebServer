@@ -250,6 +250,35 @@ class CategoryViewsTests(FastPasswordTestCase):
             self.error.delete()
 
 
+class MutationMethodTests(FastPasswordTestCase):
+    def setUp(self):
+        self.author = User.objects.create_user(username='author', password='password')
+        self.category = Category.objects.get(slug='etc')
+        self.question = Question.objects.create(
+            category=self.category,
+            author=self.author,
+            subject='delete subject',
+            content='delete content',
+            create_date=timezone.now(),
+        )
+
+    def test_question_delete_get_method_is_not_allowed(self):
+        self.client.login(username='author', password='password')
+
+        response = self.client.get(reverse('pybo:question_delete', args=[self.question.id]))
+
+        self.assertEqual(response.status_code, 405)
+        self.assertTrue(Question.objects.filter(id=self.question.id).exists())
+
+    def test_question_delete_post_removes_question(self):
+        self.client.login(username='author', password='password')
+
+        response = self.client.post(reverse('pybo:question_delete', args=[self.question.id]))
+
+        self.assertEqual(response.status_code, 302)
+        self.assertFalse(Question.objects.filter(id=self.question.id).exists())
+
+
 class PopularQuestionViewsTests(FastPasswordTestCase):
     def setUp(self):
         self.user = User.objects.create_user(username='user', password='password')
@@ -603,13 +632,21 @@ class NotificationViewsTests(FastPasswordTestCase):
     def test_question_vote_sends_notification_to_question_author(self):
         self.client.login(username='actor', password='password')
 
-        response = self.client.get(reverse('pybo:vote_question', args=[self.question.id]))
+        response = self.client.post(reverse('pybo:vote_question', args=[self.question.id]))
 
         self.assertEqual(response.status_code, 302)
         notification = Notification.objects.get()
         self.assertEqual(notification.recipient, self.author)
         self.assertEqual(notification.notification_type, 'question_vote')
         self.assertEqual(notification.question, self.question)
+
+    def test_question_vote_get_method_is_not_allowed(self):
+        self.client.login(username='actor', password='password')
+
+        response = self.client.get(reverse('pybo:vote_question', args=[self.question.id]))
+
+        self.assertEqual(response.status_code, 405)
+        self.assertFalse(self.question.voter.filter(id=self.actor.id).exists())
 
     def test_answer_vote_sends_notification_to_answer_author(self):
         answer = Answer.objects.create(
@@ -620,13 +657,27 @@ class NotificationViewsTests(FastPasswordTestCase):
         )
         self.client.login(username='actor', password='password')
 
-        response = self.client.get(reverse('pybo:vote_answer', args=[answer.id]))
+        response = self.client.post(reverse('pybo:vote_answer', args=[answer.id]))
 
         self.assertEqual(response.status_code, 302)
         notification = Notification.objects.get()
         self.assertEqual(notification.recipient, self.author)
         self.assertEqual(notification.notification_type, 'answer_vote')
         self.assertEqual(notification.answer, answer)
+
+    def test_answer_vote_get_method_is_not_allowed(self):
+        answer = Answer.objects.create(
+            question=self.question,
+            author=self.author,
+            content='answer content',
+            create_date=timezone.now(),
+        )
+        self.client.login(username='actor', password='password')
+
+        response = self.client.get(reverse('pybo:vote_answer', args=[answer.id]))
+
+        self.assertEqual(response.status_code, 405)
+        self.assertFalse(answer.voter.filter(id=self.actor.id).exists())
 
     def test_own_action_does_not_create_notification(self):
         self.client.login(username='author', password='password')
@@ -637,7 +688,7 @@ class NotificationViewsTests(FastPasswordTestCase):
         self.client.post(reverse('pybo:comment_create_question', args=[self.question.id]), {
             'content': 'own comment',
         })
-        self.client.get(reverse('pybo:vote_question', args=[self.question.id]))
+        self.client.post(reverse('pybo:vote_question', args=[self.question.id]))
 
         self.assertEqual(Notification.objects.count(), 0)
 
@@ -645,8 +696,8 @@ class NotificationViewsTests(FastPasswordTestCase):
         self.client.login(username='actor', password='password')
         url = reverse('pybo:vote_question', args=[self.question.id])
 
-        self.client.get(url)
-        self.client.get(url)
+        self.client.post(url)
+        self.client.post(url)
 
         self.assertEqual(Notification.objects.count(), 1)
 

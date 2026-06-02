@@ -2,6 +2,7 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import render, get_object_or_404, redirect
 from django.utils import timezone
+from django.views.decorators.http import require_POST
 
 from ..forms import CommentForm
 from ..models import Question, Answer, Comment
@@ -62,6 +63,7 @@ def comment_modify_question(request, comment_id):
 
 
 @login_required(login_url='common:login')
+@require_POST
 def comment_delete_question(request, comment_id):
     """
     pybo 질문댓글삭제
@@ -129,6 +131,7 @@ def comment_modify_answer(request, comment_id):
 
 
 @login_required(login_url='common:login')
+@require_POST
 def comment_delete_answer(request, comment_id):
     """
     pybo 답글댓글삭제

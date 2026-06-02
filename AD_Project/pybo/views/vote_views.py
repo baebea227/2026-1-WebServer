@@ -1,12 +1,14 @@
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import get_object_or_404, redirect
+from django.views.decorators.http import require_POST
 
 from ..models import Question, Answer
 from ..notifications import create_notification
 
 
 @login_required(login_url='common:login')
+@require_POST
 def vote_question(request, question_id):
     """
     pybo 질문추천등록
@@ -29,6 +31,7 @@ def vote_question(request, question_id):
 
 
 @login_required(login_url='common:login')
+@require_POST
 def vote_answer(request, answer_id):
     """
     pybo 답글추천등록

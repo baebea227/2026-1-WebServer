@@ -2,6 +2,7 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import render, get_object_or_404, redirect
 from django.utils import timezone
+from django.views.decorators.http import require_POST
 
 from ..forms import QuestionForm
 from ..models import Question
@@ -51,6 +52,7 @@ def question_modify(request, question_id):
 
 
 @login_required(login_url='common:login')
+@require_POST
 def question_delete(request, question_id):
     """
     pybo 질문삭제
